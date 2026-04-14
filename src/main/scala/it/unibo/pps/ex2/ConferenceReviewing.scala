@@ -18,21 +18,73 @@ trait ConferenceReviewing:
   def averageWeightedFinalScoreMap(): Map[Int, Double]
 
 class ConferenceReviewingImpl extends ConferenceReviewing:
+
+  private var reviews: List[(Int, Map[Question, Int])] = List()
+
+  private def getMapCopy[K, V](original: Map[K, V]): Map[K, V] =
+    original.map{ case (key, value) => key -> value }
   
-  override def loadReview(article: Int, scores: Map[Question, Int]): Unit = ???
+  override def loadReview(article: Int, scores: Map[Question, Int]): Unit =
+    if scores.size < Question.values.length then
+      throw IllegalArgumentException()
+    reviews = reviews :+ (article, getMapCopy(scores))
 
-  override def loadReview(article: Int, relevance: Int, significance: Int, confidence: Int, finalScore: Int): Unit = ???
+  override def loadReview(article: Int, relevance: Int, significance: Int, confidence: Int, finalScore: Int): Unit =
+    val map: Map[Question, Int] = Map(
+      Question.RELEVANCE -> relevance,
+      Question.SIGNIFICANCE -> significance,
+      Question.CONFIDENCE -> confidence,
+      Question.FINAL -> finalScore
+    )
+    reviews = reviews :+ (article, map)
 
-  override def orderedScores(article: Int, question: Question): List[Int] = ???
+  private def scoresForArticle(article: Int): List[(Int, Map[Question, Int])] =
+    reviews.filter((currArticle, _) => currArticle == article)
 
-  override def averageFinalScore(article: Int): Double = ???
+  private def questionScoresForArticle(article: Int, question: Question): List[Int] =
+    scoresForArticle(article).map((_, scores) => scores(question))
 
-  override def accepted(article: Int): Boolean = ???
+  override def orderedScores(article: Int, question: Question): List[Int] =
+    questionScoresForArticle(article, question).sorted
 
-  override def acceptedArticles(): Set[Int] = ???
+  private def average(list: List[Double]): Double = list.sum / list.length
 
-  override def sortedAcceptedArticles(): List[(Int, Double)] = ???
+  override def averageFinalScore(article: Int): Double =
+    average(questionScoresForArticle(article, Question.FINAL).map(score => score.toDouble))
 
-  override def averageWeightedFinalScore(article: Int): Double = ???
+  private def isOneRelevanceScoreHighEnough(article: Int): Boolean =
+    scoresForArticle(article).exists { case (_, scores) =>
+      scores.exists { case (question, score) =>
+        question == Question.RELEVANCE && score >= 8
+      }
+    }
 
-  override def averageWeightedFinalScoreMap(): Map[Int, Double] = ???
+  override def accepted(article: Int): Boolean =
+    averageFinalScore(article) > 5.0 && isOneRelevanceScoreHighEnough(article)
+
+  private def distinctArticles: List[Int] =
+    reviews.map((article, _) => article).distinct
+
+  override def acceptedArticles(): Set[Int] =
+    distinctArticles.filter(article => accepted(article)).toSet
+
+  override def sortedAcceptedArticles(): List[(Int, Double)] =
+    given articleOrderingByAvgScoreDesc: Ordering[(Int, Double)] with
+      def compare(e1: (Int, Double), e2: (Int, Double)): Int =
+        val (_, avgScore1) = e1
+        val (_, avgScore2) = e2
+        avgScore1.compareTo(avgScore2)
+    acceptedArticles()
+      .map(article => (article, averageFinalScore(article)))
+      .toList
+      .sorted
+
+  override def averageWeightedFinalScore(article: Int): Double =
+    val weightedFinalScores = scoresForArticle(article)
+      .map((_, scores) => scores(Question.FINAL) * scores(Question.CONFIDENCE) / 10.0)
+    average(weightedFinalScores)
+
+  override def averageWeightedFinalScoreMap(): Map[Int, Double] =
+    distinctArticles
+      .groupBy(identity)
+      .collect { case (article, _) => (article, averageWeightedFinalScore(article)) }
