@@ -5,7 +5,7 @@ import org.junit.{Before, Test}
 
 class ConferenceReviewingTest:
 
-  val cr: ConferenceReviewing = ConferenceReviewingImpl()
+  val cr: ConferenceReviewing = ConferenceReviewing()
 
   @Before def init(): Unit =
     cr.loadReview(1, 8, 8, 6, 8)
