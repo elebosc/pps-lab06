@@ -45,7 +45,7 @@ enum List[A]:
     case h :: t => t.foldLeft(h)(op)
   
   // Exercise: implement the following methods
-  def zipWithValue[B](value: B): List[(A, B)] = foldRight(Nil())((_, value) :: _)
+  def zipWithValue[B](value: B): List[(A, B)] = this.map(x => (x, value))
 
   def length(): Int = foldLeft(0)((acc, _) => acc + 1)
 
@@ -62,10 +62,7 @@ enum List[A]:
     zipped
 
   def partition(predicate: A => Boolean): (List[A], List[A]) =
-    foldRight((Nil(), Nil()))((h, acc) => acc match {
-      case (l1, l2) if predicate(h) => (h :: l1, l2)
-      case (l1, l2) => (l1, h :: l2)
-    })
+    (this.filter(predicate), this.filter(x => !predicate(x)))
 
   def reverse: List[A] = foldLeft(Nil[A]())((acc, h) => h :: acc)
 
