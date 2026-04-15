@@ -3,7 +3,7 @@ package it.unibo.pps.ex1
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class OPPFPTest:
+class OOPFPTest:
 
   val reference = List(1, 2, 3, 4)
 
