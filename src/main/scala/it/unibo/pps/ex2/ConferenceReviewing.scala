@@ -18,16 +18,15 @@ trait ConferenceReviewing:
   def averageWeightedFinalScoreMap(): Map[Int, Double]
 
 class ConferenceReviewingImpl extends ConferenceReviewing:
+  
+  private final val AVG_FINAL_SCORE_ACCEPTANCE_THRESHOLD = 5.0
 
   private var reviews: List[(Int, Map[Question, Int])] = List()
-
-  private def getMapCopy[K, V](original: Map[K, V]): Map[K, V] =
-    original.map{ case (key, value) => key -> value }
   
   override def loadReview(article: Int, scores: Map[Question, Int]): Unit =
     if scores.size < Question.values.length then
       throw IllegalArgumentException()
-    reviews = reviews :+ (article, getMapCopy(scores))
+    reviews = reviews :+ (article, scores)
 
   override def loadReview(article: Int, relevance: Int, significance: Int, confidence: Int, finalScore: Int): Unit =
     val map: Map[Question, Int] = Map(
@@ -51,16 +50,17 @@ class ConferenceReviewingImpl extends ConferenceReviewing:
 
   override def averageFinalScore(article: Int): Double =
     average(questionScoresForArticle(article, Question.FINAL).map(score => score.toDouble))
+  
+  private def isAverageFinalScoreHighEnough(article: Int): Boolean =
+    averageFinalScore(article) > AVG_FINAL_SCORE_ACCEPTANCE_THRESHOLD
 
   private def isOneRelevanceScoreHighEnough(article: Int): Boolean =
     scoresForArticle(article).exists { case (_, scores) =>
-      scores.exists { case (question, score) =>
-        question == Question.RELEVANCE && score >= 8
-      }
+      scores.exists { case (question, score) => question == Question.RELEVANCE && score >= 8 }
     }
 
   override def accepted(article: Int): Boolean =
-    averageFinalScore(article) > 5.0 && isOneRelevanceScoreHighEnough(article)
+    isAverageFinalScoreHighEnough(article) && isOneRelevanceScoreHighEnough(article)
 
   private def distinctArticles: List[Int] =
     reviews.map((article, _) => article).distinct
